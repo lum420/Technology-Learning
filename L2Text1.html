@@ -297,18 +297,19 @@ function finishSession(){
   sessionScoreEl.textContent = `${currentSession.score} / ${currentSession.total}`;
   resultArea.classList.remove('hidden');
 
-  const EXERCISE_NAME = "L2Text1";
-scores.push({
-    exercise: EXERCISE_NAME,
-    student: currentUser.name,
-    role: currentUser.role,
-    level: LEVELS[currentSession.levelIndex].name,
-    gameType: currentSession.gameType,
-    score: currentSession.score,
-    total: currentSession.total,
-    timestamp: currentSession.timestamp
-});
-localStorage.setItem('cf_scores', JSON.stringify(scores));
+  scores.push({
+      exercise: EXERCISE_NAME,
+      student: currentUser.name,
+      role: currentUser.role,
+      level: LEVELS[currentSession.levelIndex].name,
+      gameType: currentSession.gameType,
+      score: currentSession.score,
+      total: currentSession.total,
+      timestamp: currentSession.timestamp
+  });
+  localStorage.setItem('cf_scores', JSON.stringify(scores));
+}
+
 
 
 // 重玩
