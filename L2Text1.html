@@ -292,23 +292,20 @@ function renderPair(words){
 }
 
 // --- 完成关卡 ---
-function finishSession(){
-  currentSession.timestamp = new Date().toLocaleString();
-  sessionScoreEl.textContent = `${currentSession.score} / ${currentSession.total}`;
-  resultArea.classList.remove('hidden');
 
-  scores.push({
-      exercise: EXERCISE_NAME,
-      student: currentUser.name,
-      role: currentUser.role,
-      level: LEVELS[currentSession.levelIndex].name,
-      gameType: currentSession.gameType,
-      score: currentSession.score,
-      total: currentSession.total,
-      timestamp: currentSession.timestamp
-  });
-  localStorage.setItem('cf_scores', JSON.stringify(scores));
-}
+const EXERCISE_NAME = location.pathname.split('/').pop().replace('.html','');
+scores.push({
+    exercise: EXERCISE_NAME,
+    student: currentUser.name,
+    role: currentUser.role,
+    level: LEVELS[currentSession.levelIndex].name,
+    gameType: currentSession.gameType,
+    score: currentSession.score,
+    total: currentSession.total,
+    timestamp: currentSession.timestamp
+});
+localStorage.setItem('cf_scores', JSON.stringify(scores));
+
 
 
 
