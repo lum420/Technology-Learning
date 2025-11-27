@@ -208,7 +208,7 @@ function shuffle(arr){return arr.sort(()=>Math.random()-0.5);}
 function randomFrom(arr){return arr[Math.floor(Math.random()*arr.length)];}
 function speak(text){const msg=new SpeechSynthesisUtterance(text); msg.lang='zh-CN'; window.speechSynthesis.speak(msg);}
 
-// 开始关卡
+// ---------- 渲染游戏 ----------
 function startSession(levelIndex, gameType){
   const lvl = LEVELS[levelIndex];
   const words = shuffle([...lvl.words]);
@@ -216,7 +216,6 @@ function startSession(levelIndex, gameType){
   renderGame();
 }
 
-// 渲染游戏
 function renderGame(){
   gameArea.innerHTML=''; resultArea.classList.add('hidden');
   const {gameType, words} = currentSession;
@@ -227,16 +226,88 @@ function renderGame(){
   else if(gameType==='pair') renderPair(words);
 }
 
-// --- renderMC / renderTyping / renderListen / renderMatch / renderPair 同原代码 ---
-// 省略这里，为简洁，可直接用你原来的函数
+// --- 看词选义 ---
+function renderMC(words){
+  let idx=0; const box=document.createElement('div');
+  box.innerHTML=`<div class="muted">看词选义 (${words.length} 题)</div>`; gameArea.appendChild(box);
+  const showQ=()=>{
+    box.querySelectorAll('.q').forEach(n=>n.remove());
+    if(idx>=words.length){ finishSession(); return; }
+    const w=words[idx]; const q=document.createElement('div'); q.className='q';
+    q.innerHTML=`<div class="word-big">${w.ch}</div><div class="muted">${w.pin}</div>`;
+    const opts=[w.en]; while(opts.length<4){ const r=randomFrom(words).en; if(!opts.includes(r)) opts.push(r); } shuffle(opts);
+    const optsBox=document.createElement('div'); optsBox.className='options';
+    opts.forEach(o=>{
+      const b=document.createElement('button'); b.className='opt'; b.textContent=o;
+      b.onclick=()=>{ if(o===w.en){ b.classList.add('correct'); currentSession.score++; } else { b.classList.add('wrong'); const right=[...optsBox.children].find(x=>x.textContent===w.en); if(right) right.classList.add('correct'); } idx++; setTimeout(showQ,600); };
+      optsBox.appendChild(b);
+    });
+    const speakBtn=document.createElement('button'); speakBtn.textContent='🔊 发音'; speakBtn.style.marginLeft='8px';
+    speakBtn.onclick=()=>speak(w.ch); q.appendChild(speakBtn);
+    q.appendChild(optsBox); box.appendChild(q);
+  }; showQ();
+}
 
-// 完成关卡：加入练习名字
+// --- 拼写/输入 ---
+function renderTyping(words){
+  let idx=0; const box=document.createElement('div');
+  box.innerHTML=`<div class="muted">拼写/输入 (${words.length} 题)</div>`; gameArea.appendChild(box);
+  const showQ=()=>{
+    box.querySelectorAll('.q').forEach(n=>n.remove());
+    if(idx>=words.length){ finishSession(); return; }
+    const w=words[idx]; const q=document.createElement('div'); q.className='q';
+    q.innerHTML=`<div class="word-big">${w.ch}</div><div class="muted">${w.pin}</div>`;
+    const inp=document.createElement('input'); inp.style.width='100%'; inp.placeholder='输入答案并回车';
+    inp.onkeydown=(e)=>{ if(e.key==='Enter'){ const val=inp.value.trim().toLowerCase(); if(val===w.ch.toLowerCase()||val===w.en.toLowerCase()||val===w.pin.toLowerCase()){ currentSession.score++; } idx++; setTimeout(showQ,600); } };
+    q.appendChild(inp); box.appendChild(q); inp.focus();
+  }; showQ();
+}
+
+// --- 听写 ---
+function renderListen(words){
+  let idx=0; const box=document.createElement('div');
+  box.innerHTML=`<div class="muted">听写 (${words.length} 题)</div>`; gameArea.appendChild(box);
+  const showQ=()=>{
+    box.querySelectorAll('.q').forEach(n=>n.remove());
+    if(idx>=words.length){ finishSession(); return; }
+    const w=words[idx]; const q=document.createElement('div'); q.className='q';
+    const playBtn=document.createElement('button'); playBtn.textContent='🔊 播放'; playBtn.onclick=()=>speak(w.ch); q.appendChild(playBtn);
+    const inp=document.createElement('input'); inp.style.width='100%'; inp.placeholder='输入答案并回车';
+    inp.onkeydown=(e)=>{ if(e.key==='Enter'){ const val=inp.value.trim().toLowerCase(); if(val===w.ch.toLowerCase()||val===w.en.toLowerCase()||val===w.pin.toLowerCase()){ currentSession.score++; } idx++; setTimeout(showQ,600); } };
+    q.appendChild(inp); box.appendChild(q); inp.focus();
+  }; showQ();
+}
+
+// --- 配对 ---
+function renderMatch(words){
+  currentSession.score=0;
+  const box=document.createElement('div'); box.innerHTML=`<div class="muted">配对题：点击左列中文，再点击右列英文</div>`; gameArea.appendChild(box);
+  let selected=null, correctPairs=0;
+  const left=words.map(w=>({id:w.ch,text:w.ch})), right=shuffle(words.map(w=>({id:w.ch,text:w.en})));
+  const leftBox=document.createElement('div'); leftBox.style.width='45%'; leftBox.style.display='inline-block';
+  const rightBox=document.createElement('div'); rightBox.style.width='45%'; rightBox.style.display='inline-block';
+  left.forEach(l=>{ const b=document.createElement('button'); b.className='opt'; b.style.display='block'; b.style.width='100%'; b.style.marginBottom='6px'; b.textContent=l.text; b.onclick=()=>{ selected=l; b.style.border='2px solid #3b82f6'; }; leftBox.appendChild(b); });
+  right.forEach(r=>{ const b=document.createElement('button'); b.className='opt'; b.style.display='block'; b.style.width='100%'; b.style.marginBottom='6px'; b.textContent=r.text; b.onclick=()=>{ if(!selected){ alert('先选左列'); return; } const correct=words.find(w=>w.ch===selected.id).en; if(r.text===correct){ b.classList.add('correct'); currentSession.score++; correctPairs++; } else b.classList.add('wrong'); selected=null; if(correctPairs>=words.length) finishSession(); }; rightBox.appendChild(b); });
+  box.appendChild(leftBox); box.appendChild(rightBox);
+}
+
+// --- 连连看 ---
+function renderPair(words){
+  currentSession.score=0;
+  const box=document.createElement('div'); box.innerHTML=`<div class="muted">连连看：点击一项，再点击匹配项</div>`; gameArea.appendChild(box);
+  let first=null, pairs=0;
+  const items=shuffle(words.flatMap(w=>[{type:'ch',key:w.ch,text:w.ch},{type:'en',key:w.ch,text:w.en}]));
+  const grid=document.createElement('div'); grid.style.display='grid'; grid.style.gridTemplateColumns='repeat(4,1fr)'; grid.style.gap='8px';
+  items.forEach(it=>{ const b=document.createElement('button'); b.className='opt'; b.textContent=it.text; b.onclick=()=>{ if(!first){ first=it; b.style.opacity=0.5; return; } if(first.key===it.key && first.type!==it.type){ currentSession.score++; pairs++; b.style.visibility='hidden'; Array.from(grid.children).forEach(n=>{ if(n.textContent===first.text) n.style.visibility='hidden'; }); } else alert('不是配对，重选'); first=null; if(pairs>=words.length) finishSession(); }; grid.appendChild(b); });
+  box.appendChild(grid);
+}
+
+// --- 完成关卡 ---
 function finishSession(){
   currentSession.timestamp = new Date().toLocaleString();
   sessionScoreEl.textContent = `${currentSession.score} / ${currentSession.total}`;
   resultArea.classList.remove('hidden');
 
-  // 新增 exercise 字段
   scores.push({
     exercise: EXERCISE_NAME,
     student: currentUser.name,
@@ -247,7 +318,6 @@ function finishSession(){
     total: currentSession.total,
     timestamp: currentSession.timestamp
   });
-
   localStorage.setItem('cf_scores', JSON.stringify(scores));
 }
 
@@ -257,23 +327,4 @@ retryBtn.onclick=()=>renderGame();
 // 教师表格
 function renderTeacherTable(){
   if(scores.length===0){ teacherTable.innerHTML='无本地成绩'; return; }
-  let html='<table><tr><th>练习</th><th>学生</th><th>角色</th><th>关卡</th><th>题型</th><th>得分</th><th>总分</th><th>时间</th></tr>';
-  scores.forEach(s=>{
-    html+=`<tr><td>${s.exercise}</td><td>${s.student}</td><td>${s.role}</td><td>${s.level}</td><td>${s.gameType}</td><td>${s.score}</td><td>${s.total}</td><td>${s.timestamp}</td></tr>`;
-  });
-  html+='</table>'; teacherTable.innerHTML=html;
-}
-
-// 导出 CSV
-exportCsvBtn.onclick=()=>{
-  if(scores.length===0){ alert('无本地成绩'); return; }
-  let csv='练习,学生,角色,关卡,题型,得分,总分,时间\n';
-  scores.forEach(s=>{
-    csv+=`${s.exercise},${s.student},${s.role},${s.level},${s.gameType},${s.score},${s.total},${s.timestamp}\n`;
-  });
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='scores.csv'; a.click(); URL.revokeObjectURL(url);
-};
-</script>
-</body>
-</html>
+  let html='<table><tr><th>练习</th><th>学生</th><th>角色</th><th>关卡</th
