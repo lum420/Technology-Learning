@@ -93,11 +93,8 @@ th,td{padding:8px;border:1px solid #d1d5db;text-align:left}
 <script>
 // --- 新增：练习名字 ---
 const EXERCISE_NAME = "L1Text2";
-
-// 教师密码
 const TEACHER_PASSWORD = "NK0811";
 
-// 关卡与词汇
 const LEVELS = [
   {name:'HSK1: 基础', words:[
     {ch:'再见', pin:'zàijiàn', en:'goodbye'},
@@ -118,7 +115,6 @@ const LEVELS = [
 
 let scores = JSON.parse(localStorage.getItem('cf_scores')||'[]');
 
-// 元素
 const loginCard = document.getElementById('loginCard');
 const mainCard = document.getElementById('mainCard');
 const teacherCard = document.getElementById('teacherCard');
@@ -145,7 +141,6 @@ const teacherPasswordInput = document.getElementById('teacherPassword');
 let currentUser = null;
 let currentSession = null;
 
-// 初始化关卡
 function initLevels(){
   levelSelectEl.innerHTML='';
   LEVELS.forEach((l,i)=>{
@@ -157,10 +152,8 @@ function initLevels(){
 }
 initLevels();
 
-// 显示/隐藏教师密码
 roleSelect.onchange = ()=> teacherPasswordDiv.classList.toggle('hidden', roleSelect.value!=='teacher');
 
-// 登录
 loginBtn.onclick = ()=>{
   const name = studentNameEl.value.trim();
   const role = roleSelect.value;
@@ -178,16 +171,13 @@ loginBtn.onclick = ()=>{
   if(role==='teacher') teacherModeBtn.classList.remove('hidden');
 };
 
-// 登出
 logoutBtn.onclick = ()=> location.reload();
 
-// 教师模式
 teacherModeBtn.onclick = ()=> {
   teacherCard.classList.toggle('hidden');
   renderTeacherTable();
 };
 
-// 清空成绩
 clearScoresBtn.onclick = ()=>{
   if(confirm('确定清空所有成绩吗？')) {
     scores=[];
@@ -196,19 +186,16 @@ clearScoresBtn.onclick = ()=>{
   }
 };
 
-// 开始闯关
 startGameBtn.onclick = ()=>{
   const lvlIndex = parseInt(levelSelectEl.value);
   const gameType = gameTypeEl.value;
   startSession(lvlIndex, gameType);
 };
 
-// 工具函数
 function shuffle(arr){return arr.sort(()=>Math.random()-0.5);}
 function randomFrom(arr){return arr[Math.floor(Math.random()*arr.length)];}
 function speak(text){const msg=new SpeechSynthesisUtterance(text); msg.lang='zh-CN'; window.speechSynthesis.speak(msg);}
 
-// ---------- 渲染游戏 ----------
 function startSession(levelIndex, gameType){
   const lvl = LEVELS[levelIndex];
   const words = shuffle([...lvl.words]);
@@ -327,4 +314,38 @@ retryBtn.onclick=()=>renderGame();
 // 教师表格
 function renderTeacherTable(){
   if(scores.length===0){ teacherTable.innerHTML='无本地成绩'; return; }
-  let html='<table><tr><th>练习</th><th>学生</th><th>角色</th><th>关卡</th
+  let html='<table><tr><th>练习</th><th>学生</th><th>角色</th><th>关卡</th><th>题型</th><th>得分</th><th>总分</th><th>时间</th></tr>';
+  scores.forEach(s=>{
+    html+=`<tr>
+      <td>${s.exercise}</td>
+      <td>${s.student}</td>
+      <td>${s.role}</td>
+      <td>${s.level}</td>
+      <td>${s.gameType}</td>
+      <td>${s.score}</td>
+      <td>${s.total}</td>
+      <td>${s.timestamp}</td>
+    </tr>`;
+  });
+  html+='</table>';
+  teacherTable.innerHTML=html;
+}
+
+// 导出 CSV
+exportCsvBtn.onclick=()=>{
+  if(scores.length===0){ alert('无数据可导出'); return; }
+  const header=['练习','学生','角色','关卡','题型','得分','总分','时间'];
+  const rows=scores.map(s=>[s.exercise,s.student,s.role,s.level,s.gameType,s.score,s.total,s.timestamp]);
+  const csv=[header,...rows].map(r=>r.join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='scores.csv'; a.click();
+  URL.revokeObjectURL(url);
+};
+</script>
+</body>
+</html>
+
+
+    
+ 
