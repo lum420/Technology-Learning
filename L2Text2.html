@@ -87,62 +87,63 @@ th,td{padding:8px;border:1px solid #d1d5db;text-align:left}
     <button id="exportCsvBtn">导出 CSV</button>
     <button id="clearScoresBtn" style="background:#ef4444;margin-left:10px;">清空成绩</button>
     <div id="teacherTable"></div>
+    <h3>按关卡统计分数</h3>
+    <div id="levelStats"></div>
   </div>
 </div>
 
 <script>
-const TEACHER_PASSWORD = "NK0811";
+const EXERCISE_NAME="L1Text2";
+const TEACHER_PASSWORD="NK0811";
+const correctSound=new Audio('correct.mp3');
+const wrongSound=new Audio('wrong.mp3');
 
-// 音效
-const correctSound = new Audio('correct.mp3');
-const wrongSound = new Audio('wrong.mp3');
-
-const LEVELS = [
-  {name:'PART1: 家人', words:[
-    {ch:'爸爸', pin:'bàba', en:'father'},
-    {ch:'妈妈', pin:'māma', en:'mother'},
-    {ch:'哥哥', pin:'gēge', en:'older brother'},
-    {ch:'姐姐', pin:'jiějie', en:'older sister'},
-    {ch:'弟弟', pin:'dìdi', en:'younger brother'},
-    {ch:'妹妹', pin:'mèimei', en:'younger sister'}
-  ]},
-  {name:'PART2: 亲戚', words:[
-    {ch:'爷爷', pin:'yéye', en:'grandfather (father’s side)'},
-    {ch:'奶奶', pin:'nǎinai', en:'grandmother (father’s side)'},
-    {ch:'大伯', pin:'dàbó', en:'father’s elder brother'},
-    {ch:'姑姑', pin:'gūgu', en:'father’s sister'},
-    {ch:'叔叔', pin:'shūshu', en:'father’s younger brother'},
-    {ch:'舅舅', pin:'jiùjiu', en:'mother’s brother'}
-  ]}
+const LEVELS=[
+{name:'HSK1: 基础', words:[
+{ch:'再见',pin:'zàijiàn',en:'goodbye'},
+{ch:'不客气',pin:'bú kèqi',en:'you’re welcome'},
+{ch:'对不起',pin:'duìbuqǐ',en:'sorry'},
+{ch:'很好',pin:'hěn hǎo',en:'very good'},
+{ch:'不好',pin:'bù hǎo',en:'not good'},
+{ch:'喜欢',pin:'xǐhuān',en:'like'}
+]},
+{name:'HSK2: 人物与活动', words:[
+{ch:'学习',pin:'xuéxí',en:'study'},
+{ch:'爸爸',pin:'bàba',en:'father'},
+{ch:'老师',pin:'lǎoshī',en:'teacher'},
+{ch:'运动',pin:'yùndòng',en:'exercise/sport'},
+{ch:'唱歌',pin:'chàng gē',en:'sing'}
+]}
 ];
 
-let scores = JSON.parse(localStorage.getItem('cf_scores')||'[]');
+let scores=JSON.parse(localStorage.getItem('cf_scores')||'[]');
+let progress=JSON.parse(localStorage.getItem('cf_progress')||'{}');
+let currentUser=null;
+let currentSession=null;
 
-const loginCard = document.getElementById('loginCard');
-const mainCard = document.getElementById('mainCard');
-const teacherCard = document.getElementById('teacherCard');
-const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const studentNameEl = document.getElementById('studentName');
-const roleSelect = document.getElementById('roleSelect');
-const welcomeEl = document.getElementById('welcome');
-const roleTag = document.getElementById('roleTag');
-const teacherModeBtn = document.getElementById('teacherModeBtn');
-const gameTypeEl = document.getElementById('gameType');
-const levelSelectEl = document.getElementById('levelSelect');
-const startGameBtn = document.getElementById('startGameBtn');
-const gameArea = document.getElementById('gameArea');
-const resultArea = document.getElementById('resultArea');
-const sessionScoreEl = document.getElementById('sessionScore');
-const retryBtn = document.getElementById('retryBtn');
-const exportCsvBtn = document.getElementById('exportCsvBtn');
-const clearScoresBtn = document.getElementById('clearScoresBtn');
-const teacherTable = document.getElementById('teacherTable');
-const teacherPasswordDiv = document.getElementById('teacherPasswordDiv');
-const teacherPasswordInput = document.getElementById('teacherPassword');
-
-let currentUser = null;
-let currentSession = null;
+const loginCard=document.getElementById('loginCard');
+const mainCard=document.getElementById('mainCard');
+const teacherCard=document.getElementById('teacherCard');
+const loginBtn=document.getElementById('loginBtn');
+const logoutBtn=document.getElementById('logoutBtn');
+const studentNameEl=document.getElementById('studentName');
+const roleSelect=document.getElementById('roleSelect');
+const welcomeEl=document.getElementById('welcome');
+const roleTag=document.getElementById('roleTag');
+const teacherModeBtn=document.getElementById('teacherModeBtn');
+const gameTypeEl=document.getElementById('gameType');
+const levelSelectEl=document.getElementById('levelSelect');
+const startGameBtn=document.getElementById('startGameBtn');
+const gameArea=document.getElementById('gameArea');
+const resultArea=document.getElementById('resultArea');
+const sessionScoreEl=document.getElementById('sessionScore');
+const retryBtn=document.getElementById('retryBtn');
+const exportCsvBtn=document.getElementById('exportCsvBtn');
+const clearScoresBtn=document.getElementById('clearScoresBtn');
+const teacherTable=document.getElementById('teacherTable');
+const teacherPasswordDiv=document.getElementById('teacherPasswordDiv');
+const teacherPasswordInput=document.getElementById('teacherPassword');
+const levelStats=document.getElementById('levelStats');
 
 function initLevels(){
   levelSelectEl.innerHTML='';
@@ -155,48 +156,62 @@ function initLevels(){
 }
 initLevels();
 
-roleSelect.onchange = ()=> teacherPasswordDiv.classList.toggle('hidden', roleSelect.value!=='teacher');
+roleSelect.onchange=()=>teacherPasswordDiv.classList.toggle('hidden',roleSelect.value!=='teacher');
 
-loginBtn.onclick = ()=>{
-  const name = studentNameEl.value.trim();
-  const role = roleSelect.value;
-  if(!name){ alert('请输入姓名'); return; }
+loginBtn.onclick=()=>{
+  const name=studentNameEl.value.trim();
+  const role=roleSelect.value;
+  if(!name){alert('请输入姓名');return;}
   if(role==='teacher'){
-    const pwd = teacherPasswordInput.value.trim();
-    if(!pwd){ alert('请输入教师密码'); return; }
-    if(pwd!==TEACHER_PASSWORD){ alert('教师密码错误'); return; }
+    const pwd=teacherPasswordInput.value.trim();
+    if(!pwd){alert('请输入教师密码');return;}
+    if(pwd!==TEACHER_PASSWORD){alert('教师密码错误');return;}
   }
-  currentUser = {name, role};
+  currentUser={name,role};
   loginCard.classList.add('hidden');
   mainCard.classList.remove('hidden');
-  welcomeEl.textContent = name;
-  roleTag.textContent = role;
+  welcomeEl.textContent=name;
+  roleTag.textContent=role;
   if(role==='teacher') teacherModeBtn.classList.remove('hidden');
+  if(progress[name])alert(`检测到未完成的关卡：${progress[name].levelName}，题型：${progress[name].gameType}`);
 };
 
-logoutBtn.onclick = ()=> location.reload();
-teacherModeBtn.onclick = ()=> { teacherCard.classList.toggle('hidden'); renderTeacherTable(); };
-clearScoresBtn.onclick = ()=>{
-  if(confirm('确定清空所有成绩吗？')) {
-    scores=[]; localStorage.removeItem('cf_scores'); renderTeacherTable();
+logoutBtn.onclick=()=>location.reload();
+
+teacherModeBtn.onclick=()=>{
+  teacherCard.classList.toggle('hidden');
+  renderTeacherTable();
+  renderLevelStats();
+};
+
+clearScoresBtn.onclick=()=>{
+  if(confirm('确定清空所有成绩吗？')){
+    scores=[]; localStorage.removeItem('cf_scores');
+    progress={}; localStorage.removeItem('cf_progress');
+    renderTeacherTable(); renderLevelStats();
   }
 };
-startGameBtn.onclick = ()=>{ startSession(parseInt(levelSelectEl.value), gameTypeEl.value); };
 
 function shuffle(arr){return arr.sort(()=>Math.random()-0.5);}
 function randomFrom(arr){return arr[Math.floor(Math.random()*arr.length)];}
-function speak(text){const msg=new SpeechSynthesisUtterance(text); msg.lang='zh-CN'; window.speechSynthesis.speak(msg);}
+function speak(text){const msg=new SpeechSynthesisUtterance(text);msg.lang='zh-CN';window.speechSynthesis.speak(msg);}
 
-function startSession(levelIndex, gameType){
-  const lvl = LEVELS[levelIndex];
-  const words = shuffle([...lvl.words]);
-  currentSession = {levelIndex, gameType, words:words.slice(0,4), score:0, total: Math.min(4, words.length)};
+startGameBtn.onclick=()=>{
+  startSession(parseInt(levelSelectEl.value),gameTypeEl.value);
+};
+
+function startSession(levelIndex,gameType){
+  const lvl=LEVELS[levelIndex];
+  const words=shuffle([...lvl.words]);
+  currentSession={levelIndex,levelName:lvl.name,gameType,words:words.slice(0,4),score:0,total:Math.min(4,words.length)};
+  progress[currentUser.name]={levelIndex,levelName:lvl.name,gameType};
+  localStorage.setItem('cf_progress',JSON.stringify(progress));
   renderGame();
 }
 
 function renderGame(){
   gameArea.innerHTML=''; resultArea.classList.add('hidden');
-  const {gameType, words} = currentSession;
+  const {gameType,words}=currentSession;
   if(gameType==='mc') renderMC(words);
   else if(gameType==='typing') renderTyping(words);
   else if(gameType==='listen') renderListen(words);
@@ -204,84 +219,29 @@ function renderGame(){
   else if(gameType==='pair') renderPair(words);
 }
 
-function finishSession(){
-  currentSession.timestamp = new Date().toLocaleString();
-  sessionScoreEl.textContent = `${currentSession.score} / ${currentSession.total}`;
-  resultArea.classList.remove('hidden');
-
-  const EXERCISE_NAME = location.pathname.split('/').pop().replace('.html','');
-  scores.push({
-    exercise: EXERCISE_NAME,
-    student: currentUser.name,
-    role: currentUser.role,
-    level: LEVELS[currentSession.levelIndex].name,
-    gameType: currentSession.gameType,
-    score: currentSession.score,
-    total: currentSession.total,
-    timestamp: currentSession.timestamp
-  });
-  localStorage.setItem('cf_scores', JSON.stringify(scores));
-}
-
-retryBtn.onclick=()=>renderGame();
-
-function renderTeacherTable(){
-  if(scores.length===0){ teacherTable.innerHTML='无本地成绩'; return; }
-  let html='<table><tr><th>练习</th><th>学生</th><th>角色</th><th>关卡</th><th>题型</th><th>得分</th><th>总分</th><th>时间</th></tr>';
-  scores.forEach(s=>{
-    html+=`<tr>
-      <td>${s.exercise}</td>
-      <td>${s.student}</td>
-      <td>${s.role}</td>
-      <td>${s.level}</td>
-      <td>${s.gameType}</td>
-      <td>${s.score}</td>
-      <td>${s.total}</td>
-      <td>${s.timestamp}</td>
-    </tr>`;
-  });
-  html+='</table>';
-  teacherTable.innerHTML=html;
-}
-
-exportCsvBtn.onclick=()=>{
-  if(scores.length===0){ alert('无数据可导出'); return; }
-  const header=['练习','学生','角色','关卡','题型','得分','总分','时间'];
-  const rows=scores.map(s=>[s.exercise,s.student,s.role,s.level,s.gameType,s.score,s.total,s.timestamp]);
-  const csv=[header,...rows].map(r=>r.join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='scores.csv'; a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* ===== 各题型实现 ===== */
+// ======= 题型函数 =======
 // 看词选义
 function renderMC(words){
   let idx=0; const box=document.createElement('div');
   box.innerHTML=`<div class="muted">看词选义 (${words.length} 题)</div>`; gameArea.appendChild(box);
-
   const showQ=()=>{
     box.querySelectorAll('.q').forEach(n=>n.remove());
     if(idx>=words.length){ finishSession(); return; }
     const w=words[idx]; const q=document.createElement('div'); q.className='q';
     q.innerHTML=`<div class="word-big">${w.ch}</div><div class="muted">${w.pin}</div>`;
-    
     const opts=[w.en]; while(opts.length<4){ const r=randomFrom(words).en; if(!opts.includes(r)) opts.push(r); } shuffle(opts);
     const optsBox=document.createElement('div'); optsBox.className='options';
     opts.forEach(o=>{
       const b=document.createElement('button'); b.className='opt'; b.textContent=o;
       b.onclick=()=>{
-        if(o===w.en){ b.classList.add('correct'); currentSession.score++; correctSound.play(); }
-        else { b.classList.add('wrong'); wrongSound.play(); const right=[...optsBox.children].find(x=>x.textContent===w.en); if(right) right.classList.add('correct'); }
-        idx++; setTimeout(showQ,1000);
+        if(o===w.en){ b.classList.add('correct'); correctSound.play(); currentSession.score++; } 
+        else{ b.classList.add('wrong'); wrongSound.play(); const right=[...optsBox.children].find(x=>x.textContent===w.en); if(right) right.classList.add('correct');}
+        idx++; setTimeout(showQ,600);
       };
       optsBox.appendChild(b);
     });
-
     const speakBtn=document.createElement('button'); speakBtn.textContent='🔊 发音'; speakBtn.style.marginLeft='8px';
     speakBtn.onclick=()=>speak(w.ch); q.appendChild(speakBtn);
-
     q.appendChild(optsBox); box.appendChild(q);
   }; showQ();
 }
@@ -290,21 +250,13 @@ function renderMC(words){
 function renderTyping(words){
   let idx=0; const box=document.createElement('div');
   box.innerHTML=`<div class="muted">拼写/输入 (${words.length} 题)</div>`; gameArea.appendChild(box);
-
   const showQ=()=>{
     box.querySelectorAll('.q').forEach(n=>n.remove());
     if(idx>=words.length){ finishSession(); return; }
     const w=words[idx]; const q=document.createElement('div'); q.className='q';
     q.innerHTML=`<div class="word-big">${w.ch}</div><div class="muted">${w.pin}</div>`;
     const inp=document.createElement('input'); inp.style.width='100%'; inp.placeholder='输入答案并回车';
-    inp.onkeydown=(e)=>{
-      if(e.key==='Enter'){
-        const val=inp.value.trim().toLowerCase();
-        if(val===w.ch.toLowerCase()||val===w.en.toLowerCase()||val===w.pin.toLowerCase()){ currentSession.score++; correctSound.play(); }
-        else { wrongSound.play(); alert(`正确答案: ${w.ch} / ${w.en} / ${w.pin}`); }
-        idx++; setTimeout(showQ,600);
-      }
-    };
+    inp.onkeydown=(e)=>{ if(e.key==='Enter'){ const val=inp.value.trim().toLowerCase(); if(val===w.ch.toLowerCase()||val===w.en.toLowerCase()||val===w.pin.toLowerCase()){ currentSession.score++; correctSound.play();} else wrongSound.play(); idx++; setTimeout(showQ,600); } };
     q.appendChild(inp); box.appendChild(q); inp.focus();
   }; showQ();
 }
@@ -319,14 +271,7 @@ function renderListen(words){
     const w=words[idx]; const q=document.createElement('div'); q.className='q';
     const playBtn=document.createElement('button'); playBtn.textContent='🔊 播放'; playBtn.onclick=()=>speak(w.ch); q.appendChild(playBtn);
     const inp=document.createElement('input'); inp.style.width='100%'; inp.placeholder='输入答案并回车';
-    inp.onkeydown=(e)=>{
-      if(e.key==='Enter'){
-        const val=inp.value.trim().toLowerCase();
-        if(val===w.ch.toLowerCase()||val===w.en.toLowerCase()||val===w.pin.toLowerCase()){ currentSession.score++; correctSound.play(); }
-        else { wrongSound.play(); alert(`正确答案: ${w.ch} / ${w.en} / ${w.pin}`); }
-        idx++; setTimeout(showQ,600);
-      }
-    };
+    inp.onkeydown=(e)=>{ if(e.key==='Enter'){ const val=inp.value.trim().toLowerCase(); if(val===w.ch.toLowerCase()||val===w.en.toLowerCase()||val===w.pin.toLowerCase()){ currentSession.score++; correctSound.play();} else wrongSound.play(); idx++; setTimeout(showQ,600); } };
     q.appendChild(inp); box.appendChild(q); inp.focus();
   }; showQ();
 }
@@ -339,45 +284,56 @@ function renderMatch(words){
   const left=words.map(w=>({id:w.ch,text:w.ch})), right=shuffle(words.map(w=>({id:w.ch,text:w.en})));
   const leftBox=document.createElement('div'); leftBox.style.width='45%'; leftBox.style.display='inline-block';
   const rightBox=document.createElement('div'); rightBox.style.width='45%'; rightBox.style.display='inline-block';
-  left.forEach(l=>{
-    const b=document.createElement('button'); b.className='opt'; b.style.display='block'; b.style.width='100%'; b.style.marginBottom='6px'; b.textContent=l.text;
-    b.onclick=()=>{ selected=l; b.style.border='2px solid #3b82f6'; }; leftBox.appendChild(b);
-  });
-  right.forEach(r=>{
-    const b=document.createElement('button'); b.className='opt'; b.style.display='block'; b.style.width='100%'; b.style.marginBottom='6px'; b.textContent=r.text;
-    b.onclick=()=>{
-      if(!selected) return;
-      const correctId = r.id;
-      if(selected.id===correctId){ currentSession.score++; correctSound.play(); correctPairs++; b.classList.add('correct'); }
-      else { wrongSound.play(); alert(`正确配对: ${selected.text} - ${LEVELS[currentSession.levelIndex].words.find(x=>x.ch===selected.id).en}`); }
-      selected=null;
-      if(correctPairs>=words.length){ finishSession(); }
-    };
-    rightBox.appendChild(b);
-  });
-  box.appendChild(leftBox); box.appendChild(rightBox); gameArea.appendChild(box);
+  left.forEach(l=>{ const b=document.createElement('button'); b.className='opt'; b.style.display='block'; b.style.width='100%'; b.style.marginBottom='6px'; b.textContent=l.text; b.onclick=()=>{ selected=l; b.style.border='2px solid #3b82f6'; }; leftBox.appendChild(b); });
+  right.forEach(r=>{ const b=document.createElement('button'); b.className='opt'; b.style.display='block'; b.style.width='100%'; b.style.marginBottom='6px'; b.textContent=r.text; b.onclick=()=>{ if(!selected){ alert('先选左列'); return; } const correct=words.find(w=>w.ch===selected.id).en; if(r.text===correct){ b.classList.add('correct'); correctSound.play(); currentSession.score++; correctPairs++; } else{ b.classList.add('wrong'); wrongSound.play();} selected=null; if(correctPairs>=words.length) finishSession(); }; rightBox.appendChild(b); });
+  box.appendChild(leftBox); box.appendChild(rightBox);
 }
 
 // 连连看
 function renderPair(words){
   currentSession.score=0;
-  const box=document.createElement('div'); box.innerHTML=`<div class="muted">连连看：点击两个按钮配对</div>`; gameArea.appendChild(box);
-  let first=null, correctPairs=0;
-  const buttons = shuffle([...words,...words]).map(w=>({id:w.ch,text:w.ch}));
-  const btnBox=document.createElement('div'); btnBox.className='options';
-  buttons.forEach(b=>{
-    const btn=document.createElement('button'); btn.className='opt'; btn.textContent=b.text;
-    btn.onclick=()=>{
-      if(!first){ first={btn,b}; btn.style.border='2px solid #3b82f6'; return; }
-      if(first.b.id===b.id && first.btn!==btn){ currentSession.score++; correctSound.play(); first.btn.classList.add('correct'); btn.classList.add('correct'); correctPairs++; }
-      else { wrongSound.play(); alert(`正确答案: ${LEVELS[currentSession.levelIndex].words.find(x=>x.ch===b.id).ch}`); }
-      first=null;
-      if(correctPairs>=words.length){ finishSession(); }
-    };
-    btnBox.appendChild(btn);
-  });
-  box.appendChild(btnBox);
+  const box=document.createElement('div'); box.innerHTML=`<div class="muted">连连看：点击一项，再点击匹配项</div>`; gameArea.appendChild(box);
+  let first=null, pairs=0;
+  const items=shuffle(words.flatMap(w=>[{type:'ch',key:w.ch,text:w.ch},{type:'en',key:w.ch,text:w.en}]));
+  const grid=document.createElement('div'); grid.style.display='grid'; grid.style.gridTemplateColumns='repeat(4,1fr)'; grid.style.gap='8px';
+  items.forEach(it=>{ const b=document.createElement('button'); b.className='opt'; b.textContent=it.text; b.onclick=()=>{ if(!first){ first=it; b.style.opacity=0.5; return; } if(first.key===it.key && first.type!==it.type){ currentSession.score++; correctSound.play(); pairs++; b.style.visibility='hidden'; Array.from(grid.children).forEach(n=>{ if(n.textContent===first.text) n.style.visibility='hidden'; }); } else{ wrongSound.play(); alert('不是配对，重选');} first=null; if(pairs>=words.length) finishSession(); }; grid.appendChild(b); });
+  box.appendChild(grid);
 }
+
+// 完成关卡
+function finishSession(){
+  currentSession.timestamp=new Date().toLocaleString();
+  sessionScoreEl.textContent=`${currentSession.score}/${currentSession.total}`;
+  resultArea.classList.remove('hidden');
+  scores.push({exercise:EXERCISE_NAME,student:currentUser.name,role:currentUser.role,level:currentSession.levelName,type:currentSession.gameType,score:currentSession.score,total:currentSession.total,time:currentSession.timestamp});
+  localStorage.setItem('cf_scores',JSON.stringify(scores));
+  delete progress[currentUser.name];
+  localStorage.setItem('cf_progress',JSON.stringify(progress));
+}
+
+retryBtn.onclick=()=>startSession(currentSession.levelIndex,currentSession.gameType);
+
+function renderTeacherTable(){
+  if(scores.length===0){ teacherTable.innerHTML='无本地成绩'; return; }
+  let html='<table><tr><th>学生</th><th>关卡</th><th>题型</th><th>得分</th><th>总题数</th><th>时间</th></tr>';
+  scores.forEach(s=>{ html+=`<tr><td>${s.student}</td><td>${s.level}</td><td>${s.type}</td><td>${s.score}</td><td>${s.total}</td><td>${s.time}</td></tr>`; });
+  html+='</table>'; teacherTable.innerHTML=html;
+}
+
+function renderLevelStats(){
+  if(scores.length===0){ levelStats.innerHTML='无成绩统计'; return; }
+  const stats={};
+  scores.forEach(s=>{ if(!stats[s.level]) stats[s.level]={totalScore:0,attempts:0}; stats[s.level].totalScore+=s.score; stats[s.level].attempts+=1; });
+  let html='<ul>';
+  for(const lvl in stats){ const avg=(stats[lvl].totalScore/stats[lvl].attempts).toFixed(2); html+=`<li>${lvl} 平均得分: ${avg} （尝试次数: ${stats[lvl].attempts}）</li>`; }
+  html+='</ul>'; levelStats.innerHTML=html;
+}
+
+exportCsvBtn.onclick=()=>{
+  if(scores.length===0){ alert('没有数据'); return; }
+  const csv=['学生,关卡,题型,得分,总题数,时间',...scores.map(s=>`${s.student},${s.level},${s.type},${s.score},${s.total},${s.time}`)].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='scores.csv'; a.click();
+};
 </script>
 </body>
 </html>
