@@ -91,10 +91,9 @@ th,td{padding:8px;border:1px solid #d1d5db;text-align:left}
 </div>
 
 <script>
-// --- 新增：练习名字 ---
-const EXERCISE_NAME = "L1Text2";
 const TEACHER_PASSWORD = "NK0811";
 
+// 关卡数据
 const LEVELS = [
   {name:'PART1: 家人', words:[
     {ch:'爸爸', pin:'bàba', en:'father'},
@@ -113,7 +112,6 @@ const LEVELS = [
     {ch:'舅舅', pin:'jiùjiu', en:'mother’s brother'}
   ]}
 ];
-
 
 let scores = JSON.parse(localStorage.getItem('cf_scores')||'[]');
 
@@ -143,6 +141,7 @@ const teacherPasswordInput = document.getElementById('teacherPassword');
 let currentUser = null;
 let currentSession = null;
 
+// 初始化关卡
 function initLevels(){
   levelSelectEl.innerHTML='';
   LEVELS.forEach((l,i)=>{
@@ -154,8 +153,10 @@ function initLevels(){
 }
 initLevels();
 
+// 登录角色选择
 roleSelect.onchange = ()=> teacherPasswordDiv.classList.toggle('hidden', roleSelect.value!=='teacher');
 
+// 登录按钮
 loginBtn.onclick = ()=>{
   const name = studentNameEl.value.trim();
   const role = roleSelect.value;
@@ -174,30 +175,20 @@ loginBtn.onclick = ()=>{
 };
 
 logoutBtn.onclick = ()=> location.reload();
-
-teacherModeBtn.onclick = ()=> {
-  teacherCard.classList.toggle('hidden');
-  renderTeacherTable();
-};
-
+teacherModeBtn.onclick = ()=> { teacherCard.classList.toggle('hidden'); renderTeacherTable(); };
 clearScoresBtn.onclick = ()=>{
   if(confirm('确定清空所有成绩吗？')) {
-    scores=[];
-    localStorage.removeItem('cf_scores');
-    renderTeacherTable();
+    scores=[]; localStorage.removeItem('cf_scores'); renderTeacherTable();
   }
 };
+startGameBtn.onclick = ()=>{ startSession(parseInt(levelSelectEl.value), gameTypeEl.value); };
 
-startGameBtn.onclick = ()=>{
-  const lvlIndex = parseInt(levelSelectEl.value);
-  const gameType = gameTypeEl.value;
-  startSession(lvlIndex, gameType);
-};
-
+// 工具函数
 function shuffle(arr){return arr.sort(()=>Math.random()-0.5);}
 function randomFrom(arr){return arr[Math.floor(Math.random()*arr.length)];}
 function speak(text){const msg=new SpeechSynthesisUtterance(text); msg.lang='zh-CN'; window.speechSynthesis.speak(msg);}
 
+// 开始关卡
 function startSession(levelIndex, gameType){
   const lvl = LEVELS[levelIndex];
   const words = shuffle([...lvl.words]);
@@ -205,6 +196,7 @@ function startSession(levelIndex, gameType){
   renderGame();
 }
 
+// 渲染游戏
 function renderGame(){
   gameArea.innerHTML=''; resultArea.classList.add('hidden');
   const {gameType, words} = currentSession;
@@ -213,6 +205,26 @@ function renderGame(){
   else if(gameType==='listen') renderListen(words);
   else if(gameType==='match') renderMatch(words);
   else if(gameType==='pair') renderPair(words);
+}
+
+// --- 完成关卡 ---
+function finishSession(){
+  currentSession.timestamp = new Date().toLocaleString();
+  sessionScoreEl.textContent = `${currentSession.score} / ${currentSession.total}`;
+  resultArea.classList.remove('hidden');
+
+  const EXERCISE_NAME = location.pathname.split('/').pop().replace('.html','');
+  scores.push({
+    exercise: EXERCISE_NAME,
+    student: currentUser.name,
+    role: currentUser.role,
+    level: LEVELS[currentSession.levelIndex].name,
+    gameType: currentSession.gameType,
+    score: currentSession.score,
+    total: currentSession.total,
+    timestamp: currentSession.timestamp
+  });
+  localStorage.setItem('cf_scores', JSON.stringify(scores));
 }
 
 // --- 看词选义 ---
@@ -228,7 +240,11 @@ function renderMC(words){
     const optsBox=document.createElement('div'); optsBox.className='options';
     opts.forEach(o=>{
       const b=document.createElement('button'); b.className='opt'; b.textContent=o;
-      b.onclick=()=>{ if(o===w.en){ b.classList.add('correct'); currentSession.score++; } else { b.classList.add('wrong'); const right=[...optsBox.children].find(x=>x.textContent===w.en); if(right) right.classList.add('correct'); } idx++; setTimeout(showQ,600); };
+      b.onclick=()=>{ 
+        if(o===w.en){ b.classList.add('correct'); currentSession.score++; } 
+        else { b.classList.add('wrong'); const right=[...optsBox.children].find(x=>x.textContent===w.en); if(right) right.classList.add('correct'); } 
+        idx++; setTimeout(showQ,600); 
+      };
       optsBox.appendChild(b);
     });
     const speakBtn=document.createElement('button'); speakBtn.textContent='🔊 发音'; speakBtn.style.marginLeft='8px';
@@ -291,24 +307,6 @@ function renderPair(words){
   box.appendChild(grid);
 }
 
-// --- 完成关卡 ---
-
-const EXERCISE_NAME = location.pathname.split('/').pop().replace('.html','');
-scores.push({
-    exercise: EXERCISE_NAME,
-    student: currentUser.name,
-    role: currentUser.role,
-    level: LEVELS[currentSession.levelIndex].name,
-    gameType: currentSession.gameType,
-    score: currentSession.score,
-    total: currentSession.total,
-    timestamp: currentSession.timestamp
-});
-localStorage.setItem('cf_scores', JSON.stringify(scores));
-
-
-
-
 // 重玩
 retryBtn.onclick=()=>renderGame();
 
@@ -346,4 +344,11 @@ exportCsvBtn.onclick=()=>{
 </script>
 </body>
 </html>
+
+   
+   
+ 
+
+
+
 
